@@ -191,7 +191,7 @@ def wifiPresenceChangedHandler(evt) {
 		case "present":
 			ifDebug("WiFi Present, skip threshold check, mark all other device arrived")
 			/* 	WiFi sensor present is the ultimate truth 			*/
-			inputSensors.arrived()
+			//inputSensors.arrived()
 			arrived()
 	}
 }
@@ -339,6 +339,9 @@ private ifDebug(msg)
 }
 
 /**
+* 	Version 1.2.1
+* 		Fix Fob Null Reference
+*		Fix illadviced cleverness on WiFi routine and inputSensors.arrived()
 *	Version 1.2
 *		WiFi ulimate source of present truth, but ignored for departure
 *			When arrival events are missed, each output device get's caught in limbo.
