@@ -257,7 +257,7 @@ def lockUseHandler(evt){
 
 def departureCheck(){
 	ifDebug("Departure Check")
-	if (fobSensor.currentValue("presence") == "not present"){
+	if (fobSensor && fobSensor.currentValue("presence") == "not present"){
 		ifDebug("Fob not present override")
 		return true
 	}else{
