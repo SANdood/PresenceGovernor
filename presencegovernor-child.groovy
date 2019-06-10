@@ -192,10 +192,11 @@ def wifiPresenceChangedHandler(evt) {
 			ifDebug("WiFi Presence, skip threshold check, mark all other device arrived")
 			/* 	WiFi sensor present is the ultimate truth 			*/
 			inputSensors.each{
-			 	if (!hasNotificationCapability(it.capabilities)){
-					it.arrived()
+			 	if (it.typeName == "Mobile App Device"){
+					ifDebug("HE Mobile App, skipping forced arrival on ${it.name}")
 				} else {
-					ifDebug("I think I found the HE Mobile App, skipping forced arrival on ${it.name}")
+					ifDebug("Forced arrival on ${it.name}")
+					it.arrived()
 				}
 			}
 
@@ -358,6 +359,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.3
+*		A better option for disparate action on Mobile App
 *	Version 1.2.2
 *		New routine for WiFi handler setting inputSensors to arrived
 * 	Version 1.2.1
