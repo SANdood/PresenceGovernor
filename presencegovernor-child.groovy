@@ -125,7 +125,7 @@ preferences {
 			def lockCodesRaw
 			def lockCodes = []
 			if (lcText) lockCodesRaw = new JsonSlurper().parseText(lcText)
-			ifDebug("lockCodes for selected lock: ${lockCodesRaw}")
+			//ifDebug("lockCodes for selected lock: ${lockCodesRaw}")
 			lockCodesRaw.each{
 				//ifDebug("lockCode ${it}")
 				def lockCodeValue = it.getValue()
@@ -186,14 +186,33 @@ def wifiPresenceChangedHandler(evt) {
 			//if(departureCheck()){
 				//departed()	
 			//}
-			ifDebug("WiFi Present, not present not considered")
+			ifDebug("WiFi Presence, not present not considered")
 			break
 		case "present":
-			ifDebug("WiFi Present, skip threshold check, mark all other device arrived")
+			ifDebug("WiFi Presence, skip threshold check, mark all other device arrived")
 			/* 	WiFi sensor present is the ultimate truth 			*/
-			//inputSensors.arrived()
+			inputSensors.each{
+			 	if (!hasNotificationCapability(it.capabilities)){
+					it.arrived()
+				} else {
+					ifDebug("I think I found the HE Mobile App, skipping forced arrival on ${it.name}")
+				}
+			}
+
 			arrived()
 	}
+}
+
+def hasNotificationCapability(capabilities){
+	ifDebug("hasNotificationCapability")
+	def found = capabilities.find{
+		if (it.toString() == "Notification") {
+			ifDebug("Notification Capability Found")
+			return true
+		}
+		return false;
+	}
+	return found
 }
 
 def fobPresenceChangedHandler(evt) {
@@ -339,6 +358,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.2
+*		New routine for WiFi handler setting inputSensors to arrived
 * 	Version 1.2.1
 * 		Fix Fob Null Reference
 *		Fix illadviced cleverness on WiFi routine and inputSensors.arrived()
