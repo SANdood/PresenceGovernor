@@ -277,15 +277,19 @@ def lockUseHandler(evt){
 
 def departureCheck(){
 	ifDebug("Departure Check")
-	if (fobSensor && fobSensor.currentValue("presence") == "not present"){
+	if (wifiSensor && wifiSensor.currentValue("presence") == "present")	{
+		ifDebug("WiFi present override")
+		return false;
+	} else if (fobSensor && fobSensor.currentValue("presence") == "not present") {
 		ifDebug("Fob not present override")
 		return true
-	}else{
+	} else{
 		if (checkDepartedThreshold()){
 			return true
 		}
 	}	
 	return false
+		
 }
 
 def checkDepartedThreshold(){
@@ -359,6 +363,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.4
+* 		Fix WiFi present override of departureCheck
 *	Version 1.2.3
 *		A better option for disparate action on Mobile App
 *	Version 1.2.2
