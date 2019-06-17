@@ -183,13 +183,13 @@ def wifiPresenceChangedHandler(evt) {
 	sendEvent(name:"Presence Changed", value: "$evt.device - $evt.value", displayed:false, isStateChange: false)
 	switch(evt.value){
 		case "not present":
-			//if(departureCheck()){
-				//departed()	
-			//}
-			ifDebug("WiFi Presence, not present not considered")
+			ifDebug("WiFi Offline")
+			if(departureCheck()){
+				departed()	
+			}
 			break
 		case "present":
-			ifDebug("WiFi Presence, skip threshold check, mark all other device arrived")
+			ifDebug("WiFi Online, skip threshold check, mark all other device arrived")
 			/* 	WiFi sensor present is the ultimate truth 			*/
 			inputSensors.each{
 			 	if (it.typeName == "Mobile App Device"){
@@ -363,6 +363,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.5
+* 		Fix WiFi present override of departureCheck
 *	Version 1.2.4
 * 		Fix WiFi present override of departureCheck
 *	Version 1.2.3
