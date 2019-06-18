@@ -191,14 +191,34 @@ def wifiPresenceChangedHandler(evt) {
 		case "present":
 			ifDebug("WiFi Online, skip threshold check, mark all other device arrived")
 			/* 	WiFi sensor present is the ultimate truth 			*/
+
+
+			// inputSensors.each{
+			//  	if (it.typeName == "Mobile App Device"){
+			// 		ifDebug("HE Mobile App, skipping forced arrival on ${it.name}")
+			// 	} else {
+			// 		ifDebug("Forced arrival on ${it.name}")
+			// 		it.arrived()
+			// 	}
+			// }
+/******************************************************************
+*	Test
+*/
+
 			inputSensors.each{
-			 	if (it.typeName == "Mobile App Device"){
-					ifDebug("HE Mobile App, skipping forced arrival on ${it.name}")
-				} else {
-					ifDebug("Forced arrival on ${it.name}")
+			 	if (!it.hasCommand('arrived')){
+					ifDebug("Arrival Command Missing Skipping Forced Arrival on ${it.name}")
+				}  else {
+					ifDebug("Forced arrival on ${it.name} (${it.typeName})")
 					it.arrived()
 				}
 			}
+
+/*******************************************************************/
+
+
+
+
 
 			arrived()
 	}
@@ -363,6 +383,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.6
+*		hasCommand implemented
 *	Version 1.2.5
 * 		Fix WiFi present override of departureCheck
 *	Version 1.2.4
