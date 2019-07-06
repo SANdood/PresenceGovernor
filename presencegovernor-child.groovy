@@ -180,6 +180,7 @@ def initialize() {
 }
 
 def wifiPresenceChangedHandler(evt) {
+	unschedule()
 	sendEvent(name:"Presence Changed", value: "$evt.device - $evt.value", displayed:false, isStateChange: false)
 	switch(evt.value){
 		case "not present":
@@ -190,21 +191,6 @@ def wifiPresenceChangedHandler(evt) {
 			break
 		case "present":
 			ifDebug("WiFi Online, skip threshold check, mark all other device arrived")
-			/* 	WiFi sensor present is the ultimate truth 			*/
-
-
-			// inputSensors.each{
-			//  	if (it.typeName == "Mobile App Device"){
-			// 		ifDebug("HE Mobile App, skipping forced arrival on ${it.name}")
-			// 	} else {
-			// 		ifDebug("Forced arrival on ${it.name}")
-			// 		it.arrived()
-			// 	}
-			// }
-/******************************************************************
-*	Test
-*/
-
 			inputSensors.each{
 			 	if (!it.hasCommand('arrived')){
 					ifDebug("Arrival Command Missing Skipping Forced Arrival on ${it.name}")
@@ -213,13 +199,6 @@ def wifiPresenceChangedHandler(evt) {
 					it.arrived()
 				}
 			}
-
-/*******************************************************************/
-
-
-
-
-
 			arrived()
 	}
 }
@@ -237,11 +216,14 @@ def hasNotificationCapability(capabilities){
 }
 
 def fobPresenceChangedHandler(evt) {
+	unschedule()
 	sendEvent(name:"Presence Changed", value: "$evt.device - $evt.value", displayed:false, isStateChange: false)
 	switch(evt.value){
 		case "not present":
-			ifDebug("Fob Present, skip threshold check")
-			departed()
+			ifDebug("Fob Not Present")
+			if (departureCheck()){
+				departed()	
+			}
 			break
 		case "present":
 			ifDebug("Fob Present, skip threshold check")
@@ -251,6 +233,7 @@ def fobPresenceChangedHandler(evt) {
 }
 
 def presenceChangedHandler(evt) {
+	unschedule()
 	sendEvent(name:"Presence Changed", value: "$evt.device - $evt.value", displayed:false, isStateChange: false)
 	switch(evt.value){
 		case "not present":
@@ -383,6 +366,8 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.7
+*		Check Threshold with Fob Departure
 *	Version 1.2.6
 *		hasCommand implemented
 *	Version 1.2.5
