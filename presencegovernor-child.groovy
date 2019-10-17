@@ -119,27 +119,37 @@ preferences {
 			input lockInput
 			
 			def lcText = lockCodeLock?.currentValue("lockCodes")
+			log.debug "lcText: ${lcText}"
 			if (!lcText?.startsWith("{")) {
 				lcText = decrypt(lcText)
 			}
 			def lockCodesRaw
-			def lockCodes = []
+			def lockCodes = [:]
 			if (lcText) lockCodesRaw = new JsonSlurper().parseText(lcText)
-			//ifDebug("lockCodes for selected lock: ${lockCodesRaw}")
-			lockCodesRaw.each{
-				//ifDebug("lockCode ${it}")
-				def lockCodeValue = it.getValue()
-				ifDebug("lockCodeValue.name: ${lockCodeValue.name} - lockCodeValue.code: ${lockCodeValue.code}")
-				lockCodes << ["${lockCodeValue.code}": "${lockCodeValue.name}"]
+			ifDebug("lockCodes for selected lock: ${lockCodesRaw}")
+			if (lcText?.contains('name') && lcText?.contains('code')) {
+				// HE format lockCodes
+				lockCodesRaw.each{
+					ifDebug("lockCode ${it}")
+					def lockCodeValue = it.getValue()
+					ifDebug("lockCodeValue.name: ${lockCodeValue.name} - lockCodeValue.code: ${lockCodeValue.code}")
+					lockCodes << ["${lockCodeValue.code}": "${lockCodeValue.name}"]
+				}
+			} else {
+				// RBoy (& ST?) format lock codes
+				lockCodes = lockCodesRaw
+			}
+			log.debug "lockCodes: ${lockCodes}"	
+
+			if (lockCodes) {
+				input "selectedLockCodes", 'enum', title: "Lock Code will trigger present", required: false, multiple:true, submitOnChange:true, options: lockCodes
+			} else {
+				paragraph "Selected lock does not have any Lock Codes defined."
 			}
 
-			input "selectedLockCodes", 'enum', title: "Lock Code will trigger present", required: false, multiple:true, submitOnChange:true, options: lockCodes
-			
 			input departureDelay
 			
 		}
-		
-		
 		
 		section("") {
             input "isDebug", "bool", title: "Enable Debug Logging", required: false, multiple: false, defaultValue: false, submitOnChange: true
@@ -174,7 +184,7 @@ def initialize() {
 		subscribe(fobSensor, "presence.present", fobPresenceChangedHandler)
 	}
 	if (lockCodeLock){
-		subscribe(lockCodeLock,"lock",lockUseHandler)	
+		subscribe(lockCodeLock,"lock.unlocked",lockUseHandler)	
 	}
 	app.updateLabel("Presence Governor for ${outputSensor.displayName}")
 }
@@ -250,7 +260,9 @@ def presenceChangedHandler(evt) {
 }
 
 def lockUseHandler(evt){
-	log.warn "lockUseHandler ${evt.displayName}"
+	ifDebug("lockUseHandler ${evt.displayName} ${evt.value}")
+	if (evt.value != 'unlocked') { ifDebug("Not an unlock event (${evt.value}), ignoring"); return; }
+	
     def data = evt.data
     def isEncrypted = false
     if (data && !data[0].startsWith("{")) {
@@ -260,22 +272,42 @@ def lockUseHandler(evt){
     }
 	
 	if (data){
-		ifDebug("lockUseHandler- device:${evt.displayName}, value:${evt.value}, data:${data}, type:${evt.type}, wasEncrypted:${isEncrypted}")
-		def dataJson = new JsonSlurper().parseText(data)
-		ifDebug("dataJson - ${dataJson}")
-		dataJson.each{
-			ifDebug(it)
-			def lockCodeValue = it.getValue()
-			ifDebug(lockCodeValue)
-			ifDebug(lockCodeValue.code)
-			def foundCode = selectedLockCodes.find{it == lockCodeValue.code}
-			if (foundCode){
-				ifDebug("Found Lock Code")
+		ifDebug("lockUseHandler- device:${evt.displayName}, name: ${evt.name}, value:${evt.value}, data:${data}, type:${evt.type}, wasEncrypted:${isEncrypted}")
+		
+		def parsed = parseJson(data)
+		ifDebug("parsed: ${parsed}")
+		def method = parsed?.method
+		if (method && (method != 'keypad')) { log.info("Presence Governor for $outputSensor.displayName: Unlocked by ${method} (not keypad), ignoring"); return; } 	// Wasn't a coded unlock
+		
+		def usedCode = parsed?.codeId ?: (parsed?.usedCode ?: null)
+		def codeName = usedCode ? parsed?.codeName : ""
+		if (!usedCode) {
+			// HE-format lockCodes
+			def dataJson = new JsonSlurper().parseText(data)
+			ifDebug("dataJson - ${dataJson}")
+			dataJson.each{
+				ifDebug(it)
+				def lockCodeValue = it.getValue()
+				ifDebug(lockCodeValue)
+				ifDebug(lockCodeValue.code)
+				def foundCode = selectedLockCodes.find{it == lockCodeValue.code}
+				if (foundCode){
+					log.info ("Presence Governor for $outputSensor.displayName: ${settings.lockCodeLock.displayName} was unlocked using a selected Lock Code (${foundCode}) for ${outputSensor.displayName}")
+					arrived()
+				} else {
+					ifDebug("${settings.lockCodeLock.displayName} was unlocked by another user (${lockCodeValue.code}), ignoring")
+				}
+    		}
+		} else {
+			// RBoy (& ST) format lockCodes
+			if (selectedLockCodes.contains(usedCode)) {
+				log.info("Presence Governor for $outputSensor.displayName: ${settings.lockCodeLock.displayName} was unlocked using a selected Lock Code (${usedCode} : ${codeName}) for ${outputSensor.displayName}")
 				arrived()
-			}	
-    	}
+			} else {
+				ifDebug("${settings.lockCodeLock.displayName} was unlocked by another user (${usedCode} : ${codeName}, ignoring")
+			}
+		}
 	}
-    
 }
 
 def departureCheck(){
@@ -349,15 +381,15 @@ def departed(){
 
 def delayedDeparture(){
 	ifDebug("Departing")
-	outputSensor.departed()
-	sendEvent(name:"Presence Governor", value: "departed", displayed:false, isStateChange: false)
+	if (outputSensor.currentValue('presence') != 'not present') outputSensor.departed()
+	sendEvent(name:"Presence Governor", value: "departed", displayed:false) // , isStateChange: false)
 }
 
 def arrived(){
 	ifDebug("Arriving")
 	unschedule()
-	sendEvent(name:"Presence Governor", value: "arrived", displayed:false, isStateChange: false)
-	outputSensor.arrived()	
+	sendEvent(name:"Presence Governor", value: "arrived", displayed:false) // , isStateChange: false)
+	if (outputSensor.currentValue('presence') != 'present') outputSensor.arrived()	
 }
 
 private ifDebug(msg)     
@@ -366,6 +398,10 @@ private ifDebug(msg)
 }
 
 /**
+*	Version 1.2.8bab
+*		Run arrived/departed only if presence changed
+*		Added support for ST/Rboy Lock Codes
+*		Optimized lock event handler - only watch for and handle keypad unlock events
 *	Version 1.2.7
 *		Check Threshold with Fob Departure
 *	Version 1.2.6
